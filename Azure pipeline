@@ -1,1 +1,54 @@
+trigger:
+  branches:
+    include:
+      - main  # Trigger on push to the main branch
+
+pool:
+  vmImage: 'ubuntu-latest'  # Use an Ubuntu-based VM
+
+stages:
+- stage: Build_And_Test
+  displayName: "Build and Test"
+  jobs:
+  - job: Build
+    displayName: "Build and Verify"
+    container: maven:3.8.5-openjdk-17  # Run in Maven container
+    timeoutInMinutes: 15
+    steps:
+
+    - checkout: self  # Checkout Repo-B (Main Pipeline Repo)
+
+    - script: |
+        git clone https://github.com/kirandevops1993/REPO-A.git
+        ls -la REPO-A  # Debugging: Check repo contents
+      displayName: "Clone Repo-A"
+
+    - script: |
+        if [ ! -f REPO-A/app/pom.xml ]; then
+          echo "Error: pom.xml not found in REPO-A/app/"
+          exit 1
+        fi
+      displayName: "Verify POM.xml Exists"
+
+    - script: |
+        cd REPO-A/app
+        mvn -B clean install  # Runs the build process
+      displayName: "Build with Maven"
+
+    - script: |
+        cd REPO-A/app
+        mvn -B test  # Run unit tests
+      displayName: "Run Tests"
+      continueOnError: true
+
+- stage: Notify
+  displayName: "Notify on Success"
+  dependsOn: Build_And_Test
+  condition: succeeded()
+  jobs:
+  - job: Notification
+    displayName: "Send Notification"
+    steps:
+    - script: echo "Build Successful!"
+      displayName: "Send Build Success Message"
 
